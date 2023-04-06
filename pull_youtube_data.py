@@ -45,11 +45,24 @@ def pull_data(region_code):
 
     # columns to keep
     columns = ['kind', 'id', 'channelId', 'title', 'description', 'channelTitle', 'category', 'viewCount', 'likeCount', 'favoriteCount', 'commentCount']
+    
     df = df[columns]
     df.insert(0, "date_of_extraction", today)
     df.insert(1, "country", region_code)
+    df = df.dropna()
     
-    
+    print(len(df.columns))
+   
+   # convert data types for numerical data
+
+    int_columns = ['viewCount', 'likeCount', 'favoriteCount', 'commentCount']
+    for col in int_columns:
+        df[col] = df[col].astype(int)
+    str_columns = df.columns[:-4]
+    for col in str_columns:
+        df[col] = df[col].astype(str)
+
+    print(df.dtypes)
 
     # create a client
     s3 = boto3.client(service_name='s3',
@@ -63,6 +76,7 @@ def pull_data(region_code):
     s3.put_object(Bucket='youtube-data-storage', 
                   Body=csv_buffer.getvalue(), 
                   Key=f'data/{region_code} videos {today}.csv')
+
     return None
 
 if __name__ == '__main__':
