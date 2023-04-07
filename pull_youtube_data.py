@@ -4,6 +4,7 @@ import pandas as pd
 import boto3
 import io
 import config
+import time
 
 def pull_data(region_code):
     
@@ -58,8 +59,7 @@ def pull_data(region_code):
         df[col] = df[col].astype(str)
     
 
-    # temp
-    df = df[['date_of_extraction', 'country','id', 'title', 'description', 'channelId','channelTitle', 'category', 'viewCount', 'likeCount', 'favoriteCount', 'commentCount']]
+    df = df[['date_of_extraction',  'country','id', 'title',  'channelId','channelTitle', 'category', 'viewCount', 'likeCount', 'favoriteCount', 'commentCount']]
 
     print(len(df.columns))
     print(df.dtypes)
@@ -79,25 +79,110 @@ def pull_data(region_code):
 
     return None
 
+def write_queries():
+
+    AWS_KEY_ID = config.AWS_KEY_ID
+    AWS_SECRET = config.AWS_SECRET
+    # Initialize Athena client
+    athena_client = boto3.client('athena',
+                    region_name='us-east-1',
+                    aws_access_key_id = AWS_KEY_ID,
+                    aws_secret_access_key = AWS_SECRET)
+
+    # Set the database and table name
+    database_name = 'default'
+    table_name = 'youtube_videos'
+    bucket = 'youtube-data-storage'
+    query_dir = 'query-output'
+
+    # Set the S3 output location for query results
+    s3_output_location = f's3://{bucket}/{query_dir}/'
+
+    query = '''
+        WITH category_count AS (
+
+        SELECT DATE(date_of_extraction) AS date_of_extraction, country, category, COUNT(*) AS num_videos
+        FROM youtube_videos
+        GROUP BY DATE(date_of_extraction), country,category
+        ),
+        category_rank AS (
+        SELECT date_of_extraction, country, category, num_videos,
+                RANK() OVER(PARTITION BY  date_of_extraction, country ORDER BY num_videos DESC) AS rk
+        FROM category_count)
+
+        SELECT date_of_extraction,country, category AS most_popular_category, num_videos
+        FROM category_rank
+        WHERE rk = 1
+        ORDER BY date_of_extraction, country;
+        '''
+    
+    # Run the query in Athena
+    query_execution = athena_client.start_query_execution(
+        QueryString=query,
+        QueryExecutionContext={
+            'Database': database_name
+        },
+        ResultConfiguration={
+            'OutputLocation': s3_output_location
+        }
+    )
+
+    # Get the query execution ID
+    query_execution_id = query_execution['QueryExecutionId']
+    print('Query Execution ID:', query_execution_id)
+
+    time.sleep(10)
+
+    # Get the query results
+    query_results = athena_client.get_query_results(
+        QueryExecutionId=query_execution_id)
+
+    # Extract the results and save to a local file
+    with open(f'most_popular_categories.csv', 'w', encoding="utf-8") as f:
+        for row in query_results['ResultSet']['Rows']:
+            f.write(','.join([data['VarCharValue'] for data in row['Data']]) + '\n')
+
+    # Upload the query results to S3
+    s3_client = boto3.client('s3',
+                             region_name='us-east-1',
+                            aws_access_key_id = AWS_KEY_ID,
+                            aws_secret_access_key = AWS_SECRET)
+    s3_client.upload_file('most_popular_categories.csv', 'youtube-data-storage', 'query-output/most_liked_videos.csv')
+
+    # delete Athena's generated query and metadata file
+    s3_client.delete_object(
+    Bucket=bucket,
+    Key=f'query-output/{query_execution_id}.csv')
+
+    s3_client.delete_object(
+    Bucket=bucket,
+    Key=f'query-output/{query_execution_id}.csv.metadata')
+
 if __name__ == '__main__':
     # India, United States, Brazil, Indonesia, Mexico
     # codes: IN, US, BR, ID, MX
     #pull_data(region_code='IN') # India
-    pull_data(region_code='US') # United States
+    #pull_data(region_code='US') # United States
     #pull_data(region_code='BR') # Brazil
     #pull_data(region_code='ID') # Indonesia
     #pull_data(region_code='MX') # Mexico
+
+    write_queries()
 
 
 
 # ATHENA CODE
 '''
-CREATE EXTERNAL TABLE youtube (
-  date_extraction STRING,
+CREATE DATABASE youtube
+'''
+
+
+'''
+CREATE EXTERNAL TABLE youtube_videos (
+  date_of_extraction STRING,
   country STRING,
   video_id STRING,
-  video_title STRING,
-  description STRING,
+  video_name STRING,
   channel_id STRING,
   channel_name STRING,
   category STRING,
@@ -106,8 +191,12 @@ CREATE EXTERNAL TABLE youtube (
   favorite_count INT,
   comment_count INT
 )
-ROW FORMAT SERDE 
-  'org.apache.hadoop.hive.serde2.OpenCSVSerde' 
+ROW FORMAT SERDE 'org.apache.hadoop.hive.serde2.OpenCSVSerde'
+WITH SERDEPROPERTIES (
+  'separatorChar' = ',',
+  'quoteChar' = '\"',
+  'escapeChar' = '\\'
+)
 LOCATION 's3://youtube-data-storage/data/'
 TBLPROPERTIES ('skip.header.line.count'='1')
 '''
