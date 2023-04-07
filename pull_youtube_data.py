@@ -42,28 +42,28 @@ def pull_data(region_code):
                      35 : 'Documentary', 36 : 'Drama', 37 : 'Family', 38 : 'Foreign', 39 : 'Horror', 40 : 'Sci-Fi/Fantasy', 41 : 'Thriller', 42 : 'Shorts', 43 : 'Shows', 44 : 'Trailers'}
     df['categoryId'] = df['categoryId'].astype(int)
     df['category'] = df['categoryId'].map(dict_category)
-
-    # columns to keep
-    columns = ['kind', 'id', 'channelId', 'title', 'description', 'channelTitle', 'category', 'viewCount', 'likeCount', 'favoriteCount', 'commentCount']
-    
-    df = df[columns]
     df.insert(0, "date_of_extraction", today)
     df.insert(1, "country", region_code)
+
+    # columns to keep
+    columns = ['date_of_extraction', 'country','id', 'title', 'description', 'channelId', 'channelTitle', 'category', 'viewCount', 'likeCount', 'favoriteCount', 'commentCount']
+    df = df[columns]
     df = df.dropna()
-    
-    print(len(df.columns))
-   
-   # convert data types for numerical data
 
-    int_columns = ['viewCount', 'likeCount', 'favoriteCount', 'commentCount']
-    for col in int_columns:
+    int_col = df.columns[-4:]
+    for col in int_col:
         df[col] = df[col].astype(int)
-    str_columns = df.columns[:-4]
-    for col in str_columns:
+    str_col = df.columns[:-4]
+    for col in str_col:
         df[col] = df[col].astype(str)
+    
 
+    # temp
+    df = df[['date_of_extraction', 'country','id', 'title', 'description', 'channelId','channelTitle', 'category', 'viewCount', 'likeCount', 'favoriteCount', 'commentCount']]
+
+    print(len(df.columns))
     print(df.dtypes)
-
+   
     # create a client
     s3 = boto3.client(service_name='s3',
                     region_name='us-east-1',
@@ -72,7 +72,7 @@ def pull_data(region_code):
 
     # upload pandas data frame to bucket
     csv_buffer = io.StringIO()
-    df.to_csv(csv_buffer, index=False)
+    df.to_csv(csv_buffer, index=False, sep=',')
     s3.put_object(Bucket='youtube-data-storage', 
                   Body=csv_buffer.getvalue(), 
                   Key=f'data/{region_code} videos {today}.csv')
@@ -87,3 +87,27 @@ if __name__ == '__main__':
     #pull_data(region_code='BR') # Brazil
     #pull_data(region_code='ID') # Indonesia
     #pull_data(region_code='MX') # Mexico
+
+
+
+# ATHENA CODE
+'''
+CREATE EXTERNAL TABLE youtube (
+  date_extraction STRING,
+  country STRING,
+  video_id STRING,
+  video_title STRING,
+  description STRING,
+  channel_id STRING,
+  channel_name STRING,
+  category STRING,
+  view_count INT,
+  like_count INT,
+  favorite_count INT,
+  comment_count INT
+)
+ROW FORMAT SERDE 
+  'org.apache.hadoop.hive.serde2.OpenCSVSerde' 
+LOCATION 's3://youtube-data-storage/data/'
+TBLPROPERTIES ('skip.header.line.count'='1')
+'''
