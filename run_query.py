@@ -24,7 +24,15 @@ def run_query():
     query = '''
         WITH category_count AS (
 
-        SELECT DATE(date_of_extraction) AS date_of_extraction, country, category, COUNT(*) AS num_videos
+        SELECT DATE(date_of_extraction) AS date_of_extraction, 
+            CASE country 
+                WHEN 'US' THEN 'United States' 
+                WHEN 'ID' THEN 'Indonesia'
+                WHEN 'IN' THEN 'India'
+                WHEN 'MX' THEN 'Mexico'
+                WHEN 'BR' THEN 'Brazil' END AS country,
+            category, 
+            COUNT(*) AS num_videos
         FROM youtube_videos
         GROUP BY DATE(date_of_extraction), country,category
         ),
@@ -33,7 +41,9 @@ def run_query():
                 RANK() OVER(PARTITION BY  date_of_extraction, country ORDER BY num_videos DESC) AS rk
         FROM category_count)
 
-        SELECT date_of_extraction,country, category AS most_popular_category, num_videos
+        SELECT date_of_extraction,
+            country, 
+            category AS most_popular_category, num_videos
         FROM category_rank
         WHERE rk = 1
         ORDER BY date_of_extraction, country;
@@ -52,34 +62,32 @@ def run_query():
 
     # Get the query execution ID
     query_execution_id = query_execution['QueryExecutionId']
-    print('Query Execution ID:', query_execution_id)
-
     time.sleep(10)
 
     # Get the query results
     query_results = athena_client.get_query_results(
         QueryExecutionId=query_execution_id)
-
+    
     # Extract the results and save to a local file
-    with open(f'most_popular_categories.csv', 'w', encoding="utf-8") as f:
+    file_name = 'most_popular_categories.csv'
+    with open(file_name, 'w', encoding="utf-8") as f:
         for row in query_results['ResultSet']['Rows']:
             f.write(','.join([data['VarCharValue'] for data in row['Data']]) + '\n')
 
     # Upload the query results to S3
     s3_client = boto3.client('s3',
-                             region_name='us-east-1',
+                            region_name='us-east-1',
                             aws_access_key_id = AWS_KEY_ID,
                             aws_secret_access_key = AWS_SECRET)
-    s3_client.upload_file('most_popular_categories.csv', 'youtube-data-storage', 'query-output/most_liked_videos.csv')
+    s3_client.upload_file(file_name, bucket, f'{query_dir}/{file_name}')
 
-    # delete Athena's generated query and metadata file
+    # delete Athena's generated csv and metadata files
     s3_client.delete_object(
-    Bucket=bucket,
-    Key=f'query-output/{query_execution_id}.csv')
-
+        Bucket=bucket,
+        Key=f'query-output/{query_execution_id}.csv')
     s3_client.delete_object(
-    Bucket=bucket,
-    Key=f'query-output/{query_execution_id}.csv.metadata')
+        Bucket=bucket,
+        Key=f'query-output/{query_execution_id}.csv.metadata')
 
 if __name__ =='__main__':
     run_query()
