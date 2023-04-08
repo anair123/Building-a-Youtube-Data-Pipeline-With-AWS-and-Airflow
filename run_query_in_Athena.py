@@ -89,5 +89,7 @@ def run_query():
         Bucket=bucket,
         Key=f'query-output/{query_execution_id}.csv.metadata')
 
+    return None
+
 if __name__ =='__main__':
     run_query()

@@ -5,6 +5,14 @@ import config
 from pull_youtube_data import pull_data
 from run_query_in_Athena import run_query
 
+
+# pip install apache-airflow
+# pip install pandas
+# pip install boto3
+# pip install --upgrade google-api-python-client
+# pip install --upgrade google-auth-oauthlib google-auth-httplib2
+
+
 # create dag
 with DAG(
     dag_id='pulling_youtube_data',
