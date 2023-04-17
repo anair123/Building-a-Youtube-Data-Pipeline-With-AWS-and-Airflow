@@ -2,7 +2,7 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from datetime import datetime
 from pull_youtube_data import pull_data
-from run_query_in_Athena import run_query
+from run_query_in_athena import run_query
 
 
 # pip install apache-airflow
