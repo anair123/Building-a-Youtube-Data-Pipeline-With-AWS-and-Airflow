@@ -1,5 +1,6 @@
 
 # Building-a-Youtube-ETL-Pipeline-With-AWS-and-Airflow
+![AWS (2019) horizontal framework](https://user-images.githubusercontent.com/47230033/233806822-0b589864-6fab-499f-ba38-4b3ecbc54628.jpeg)
 
 
 ![My Image](../images/AWS (2019) horizontal framework.jpeg)  
