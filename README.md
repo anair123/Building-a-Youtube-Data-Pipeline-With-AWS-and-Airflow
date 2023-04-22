@@ -3,7 +3,6 @@
 ![AWS (2019) horizontal framework](https://user-images.githubusercontent.com/47230033/233806822-0b589864-6fab-499f-ba38-4b3ecbc54628.jpeg)
 
 
-![My Image](../images/AWS (2019) horizontal framework.jpeg)  
  
 The goal of the project is to create a data pipeline that collects YouTube data for the 5 countries with the most YouTube users: Brazil, India, Indonesia, Mexico, and the United States. This pipeline should collect data on a daily basis in order to keep the information up to date.
 
