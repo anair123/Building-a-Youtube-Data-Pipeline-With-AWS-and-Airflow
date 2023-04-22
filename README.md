@@ -12,9 +12,9 @@ What are the most popular video categories in each country?
 Does the most popular video category change over time? If so, how?
 
 
-## Medium Article
+## Learn More About This Project On Medium
 
-For a step-by-step breakdown on how the project was conducted, check out the following article: https://medium.com/towards-data-science/creating-a-youtube-data-pipeline-with-aws-and-apache-airflow-e5d3b11de9c2
+For a step-by-step breakdown of how the project was conducted, check out the following article: https://medium.com/towards-data-science/creating-a-youtube-data-pipeline-with-aws-and-apache-airflow-e5d3b11de9c2
 
 ## Author
 Aashish Nair  
